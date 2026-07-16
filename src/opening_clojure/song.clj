@@ -1,10 +1,23 @@
 (ns opening-clojure.song
-  (:require [overtone.live :refer :all]
-            [leipzig.melody :refer :all]
+  (:require [overtone.live :refer [definst saw square env-gen perc adsr FREE line:kr] :as overtone]
+            [leipzig.melody :refer [tempo bpm where with phrase then all mapthen]]
             [leipzig.scale :as scale]
             [leipzig.live :as live]
             [leipzig.chord :as chord]
             [leipzig.temperament :as temperament]))
+
+;; Work around leipzig 0.10.0: its private `trickle` calls (Thread/sleep <x>)
+;; where x is a Double/Ratio. On Clojure 1.12 + modern Java, reflection won't
+;; coerce those to the primitive long that Thread.sleep needs, so every note
+;; after the first throws ("No matching method sleep found taking 1 args") and
+;; the melody's future dies. Re-def the var to coerce the sleep value to long.
+(alter-var-root
+ #'live/trickle
+ (constantly
+  (fn trickle [[note & others]]
+    (when-let [{epoch :time} note]
+      (Thread/sleep (long (max 0 (- epoch (+ 100 (overtone/now))))))
+      (cons note (lazy-seq (trickle others)))))))
 
 ; Instruments
 (definst bass [freq 110 volume 1.0]
@@ -12,41 +25,26 @@
       (* (env-gen (perc 0.1 0.4) :action FREE))
       (* volume)))
 
-(definst organ [freq 440 dur 1 volume 1.0]
-  (-> (square freq)
-      (* (env-gen (adsr 0.01 0.8 0.1) (line:kr 1 0 dur) :action FREE))
-      (* 1/4 volume)))
+(defmethod live/play-note :default [{hertz :pitch}] (bass hertz))
 
-; Arrangement
-(defmethod live/play-note :bass [{hertz :pitch}] (bass hertz))
-(defmethod live/play-note :accompaniment [{hertz :pitch seconds :duration}] (organ hertz seconds))
-
-; Composition
-(def progression [0 0 3 0 4 0])
-
-(defn bassline [root]
-  (->> (phrase (cycle [1 1/2 1/2 1 1]) [0 -3 -1 0 2 0 2 3 2 0])
-       (where :pitch (scale/from root))
-       (where :pitch (comp scale/lower scale/lower))
-       (all :part :bass)))
-
-(defn accompaniment [root]
+(defn xin [pitch-one pitch-two duration]
   (->>
-    (phrase [8] [(-> chord/seventh (chord/root root))])
-    (all :part :accompaniment)))
+   (phrase (repeat duration (/ 1 duration)) (take duration (cycle [pitch-one pitch-two])))))
 
-; Track
+(def top
+  (xin 0 2 12))
+
+(def top-2
+  (xin 4 0 12))
+
+(def mid
+  (xin -3 0 8))
+
 (def track
   (->>
-    (mapthen bassline progression)
-    (with (mapthen accompaniment progression))
-    (where :pitch (comp temperament/equal scale/A scale/minor))
-    (tempo (bpm 90))))
-
-(defn -main []
-  (live/play track))
-
-(comment
-  ; Loop the track, allowing live editing.
-  (live/jam (var track))
-)
+   top
+   ;;mid
+   (with mid)
+   (then (with top-2 mid))
+   (where :pitch (comp temperament/equal scale/F scale/dorian))
+   (tempo (bpm 45))))
