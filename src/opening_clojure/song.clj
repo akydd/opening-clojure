@@ -1,6 +1,6 @@
 (ns opening-clojure.song
   (:require [overtone.live :refer [definst saw square env-gen perc adsr FREE line:kr] :as overtone]
-            [leipzig.melody :refer [tempo bpm where with phrase then all mapthen]]
+            [leipzig.melody :refer [tempo bpm where with phrase then times]]
             [leipzig.scale :as scale]
             [leipzig.live :as live]
             [leipzig.chord :as chord]
@@ -27,24 +27,28 @@
 
 (defmethod live/play-note :default [{hertz :pitch}] (bass hertz))
 
-(defn xin [pitch-one pitch-two duration]
+(defn phrase-maker [pairs duration]
   (->>
-   (phrase (repeat duration (/ 1 duration)) (take duration (cycle [pitch-one pitch-two])))))
+   (phrase (repeat (* duration (count pairs)) (/ 1 duration))
+           (reduce
+            (fn [acc notes]
+              (into acc (take duration (cycle notes))))
+            [] pairs))))
 
-(def top
-  (xin 0 2 12))
-
-(def top-2
-  (xin 4 0 12))
-
-(def mid
-  (xin -3 0 8))
+; `notes` arrives as a lazy seq (phrase/then/times/with all return seqs), and
+; update-in needs an Associative coll -- on a seq (get notes i) yields nil, so
+; (dec nil) would NPE. vec first, then lower the second-to-last note's pitch.
+(defn descend [notes]
+  (let [v (vec notes)]
+    (update-in v [(- (count v) 2) :pitch] dec)))
 
 (def track
   (->>
-   top
-   ;;mid
-   (with mid)
-   (then (with top-2 mid))
+   (times 3 (descend (phrase-maker [[0 2] [4 0] [1 4] [2 4]] 12)))
+   (then (phrase-maker [[0 2] [4 0] [1 4] [1 4]] 12))
+   (with (times 4 (phrase-maker (concat
+                                 (repeat 2 [-5 -3])
+                                 (repeat 2 [-6 -4]))
+                                8)))
    (where :pitch (comp temperament/equal scale/F scale/dorian))
-   (tempo (bpm 45))))
+   (tempo (bpm 30))))
