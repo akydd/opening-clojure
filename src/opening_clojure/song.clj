@@ -42,13 +42,47 @@
   (let [v (vec notes)]
     (update-in v [(- (count v) 2) :pitch] dec)))
 
-(def track
+(def top-a
   (->>
    (times 3 (descend (phrase-maker [[0 2] [4 0] [1 4] [2 4]] 12)))
-   (then (phrase-maker [[0 2] [4 0] [1 4] [1 4]] 12))
-   (with (times 4 (phrase-maker (concat
-                                 (repeat 2 [-5 -3])
-                                 (repeat 2 [-6 -4]))
-                                8)))
+   (then (phrase-maker [[0 2] [4 0] [1 4] [1 4]] 12))))
+
+(def top-b
+  (->>
+   (times 3 (phrase-maker [[-3 0] [-2 0] [-4 -1] [-3 -1]] 12))
+   (then (phrase-maker [[-3 0] [-2 0] [-4 -1] [-4 -1]] 12))))
+
+(def top-c
+  (->>
+   (times 3 (phrase-maker [[5 0] [2 5] [6 2] [6 2]] 12))
+   (then (phrase-maker [[5 1] [5 1] [5 2] [5 3]] 12))))
+
+(def mid-a
+  (->>
+   (times 4 (phrase-maker (concat
+                           (repeat 2 [-5 -3])
+                           (repeat 2 [-6 -4]))
+                          8))))
+
+(def mid-b
+  (->>
+   (times 4 (phrase-maker (concat
+                           (repeat 2 [-7 -5])
+                           (repeat 2 [-8 -6]))
+                          8))))
+
+(def mid-c
+  (->>
+   (times 3 (phrase-maker (concat
+                           (repeat 2 [-4 -2])
+                           (repeat 2 [-3 -1]))
+                          8))
+   (then (phrase-maker (repeat 4 [-4 -2]) 8))))
+
+(def track
+  (->>
+   (with top-a mid-a)
+   (then (with top-b mid-b))
+   (then (with top-c mid-c))
    (where :pitch (comp temperament/equal scale/F scale/dorian))
    (tempo (bpm 30))))
