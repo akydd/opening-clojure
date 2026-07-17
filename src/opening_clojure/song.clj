@@ -1,9 +1,8 @@
 (ns opening-clojure.song
-  (:require [overtone.live :refer [definst saw square env-gen perc adsr FREE line:kr] :as overtone]
+  (:require [overtone.live :refer [definst saw env-gen perc FREE] :as overtone]
             [leipzig.melody :refer [tempo bpm where with phrase then times]]
             [leipzig.scale :as scale]
             [leipzig.live :as live]
-            [leipzig.chord :as chord]
             [leipzig.temperament :as temperament]))
 
 ;; Work around leipzig 0.10.0: its private `trickle` calls (Thread/sleep <x>)
