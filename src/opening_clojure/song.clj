@@ -26,7 +26,11 @@
 
 (defmethod live/play-note :default [{hertz :pitch}] (bass hertz))
 
-(defn phrase-maker [pairs duration]
+(defn phrase-maker
+  "Creates a phrase of oscillating notes of equal `duration`.
+
+  Each pair in `pairs` gets a single measure."
+  [pairs duration]
   (->>
    (phrase (repeat (* duration (count pairs)) (/ 1 duration))
            (reduce
@@ -34,10 +38,12 @@
               (into acc (take duration (cycle notes))))
             [] pairs))))
 
-; `notes` arrives as a lazy seq (phrase/then/times/with all return seqs), and
-; update-in needs an Associative coll -- on a seq (get notes i) yields nil, so
-; (dec nil) would NPE. vec first, then lower the second-to-last note's pitch.
-(defn descend [notes]
+(defn descend
+  "Drops the 2nd to last note in `notes` by a single pitch."
+  [notes]
+  ; `notes` arrives as a lazy seq (phrase/then/times/with all return seqs), and
+  ; update-in needs an Associative coll -- on a seq (get notes i) yields nil, so
+  ; (dec nil) would NPE. vec first, then lower the second-to-last note's pitch.
   (let [v (vec notes)]
     (update-in v [(- (count v) 2) :pitch] dec)))
 
