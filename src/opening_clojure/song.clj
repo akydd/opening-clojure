@@ -79,10 +79,29 @@
                           8))
    (then (phrase-maker (repeat 4 [-4 -2]) 8))))
 
+(def bass-a
+  (->>
+   (times 3 (phrase [2 1 1] [-7 -8 (scale/flat -9)]))
+   (then (phrase [2 1 1] [-7 -8 -11]))))
+
+(def bass-b
+  (->>
+   (times 4 (phrase [1 1 1 1] [-10 -11 -11 -13]))))
+
+(def bass-c
+  (->>
+   (times 2 (phrase [2 1 1] [-7 -5 -4]))
+   (then (phrase [2 1 1/2 1/2] [-7 -5 -4 -5]))
+   (then (phrase [2 2] [-6 -7]))))
+
 (def track
   (->>
-   (with top-a mid-a)
-   (then (with top-b mid-b))
-   (then (with top-c mid-c))
+   (with top-a mid-a bass-a)
+   (then (with top-b mid-b bass-b))
+   (then (with top-c mid-c bass-c))
+   (times 2)
+   (then (with top-a mid-a bass-a))
+   (then (with top-b mid-b bass-b))
+   (then (with top-c mid-c bass-c))
    (where :pitch (comp temperament/equal scale/F scale/dorian))
    (tempo (bpm 30))))
