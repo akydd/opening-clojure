@@ -142,6 +142,46 @@ To stop playback:
 
 (`overtone` is the alias for `overtone.live` in this namespace.)
 
+## Recording
+
+The namespace provides a `record-song` function that plays the piece while
+capturing Overtone's master output straight to a WAV file. From a REPL:
+
+```clojure
+(require '[opening-clojure.song :as song])
+
+;; Writes opening.wav to the project root (pass a name without the extension).
+(song/record-song "opening")
+```
+
+Overtone inserts roughly **1.5 s of silence at the start** of the recording. To
+trim it, add `-ss 1.5` right after `-i opening.wav` in the ffmpeg commands below
+(the static-image example shows this).
+
+### Turning the WAV into an MP4
+
+YouTube (and most video sites) need a video track, so pair the audio with some
+visuals using [ffmpeg](https://ffmpeg.org/) (`brew install ffmpeg`).
+
+A generated constant-Q spectrogram (`showcqt`) — a bar-per-pitch bloom that
+tracks the melody, no image file needed. The `-crf 28 -preset veryslow` encode
+at 15fps keeps the result under ~10 MB:
+
+```sh
+ffmpeg -i opening.wav \
+  -filter_complex "[0:a]showcqt=s=1280x720:fps=15[v]" \
+  -map "[v]" -map 0:a -c:v libx264 -crf 28 -preset veryslow -pix_fmt yuv420p \
+  -c:a aac -b:a 128k -movflags +faststart opening.mp4
+```
+
+Or, for the simplest result, pair the audio with a single static image:
+
+```sh
+ffmpeg -loop 1 -i cover.png -ss 1.5 -i opening.wav \
+  -c:v libx264 -tune stillimage -pix_fmt yuv420p \
+  -c:a aac -b:a 192k -shortest opening.mp4
+```
+
 ## Troubleshooting
 
 - **No sound / server won't boot:** confirm SuperCollider is installed and that
@@ -150,3 +190,14 @@ To stop playback:
   SuperCollider; subsequent starts are faster.
 - **`lein run` exits without sound:** make sure SuperCollider is installed; the
   server must boot before `-main` can play anything.
+
+## Credits and copyright
+
+"Opening" from *Glassworks* was composed by Philip Glass (1982). This project is
+an original, non-commercial transcription of the piece, performed by the Clojure
+code in this repository using the Overtone and Leipzig libraries. No rights are
+claimed to the underlying composition, which remains the property of Philip
+Glass and his publishers/rights holders; no copyright infringement is intended.
+
+Only the code in this repository and this particular rendering are the author's
+own work.

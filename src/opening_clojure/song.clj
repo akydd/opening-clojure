@@ -117,21 +117,35 @@
    (where :pitch (comp temperament/equal scale/F scale/dorian))
    (tempo (bpm 30))))
 
+(defn track-length
+  "Compute the length, in seconds, of a track."
+  [track]
+  (reduce (fn [acc {:keys [time duration]}]
+            (max acc (+ time duration)))
+          0 track))
+
 (defn -main
   "Entry point for `lein run`: play the piece and block until it finishes.
 
   `live/play` is asynchronous and returns immediately, so without blocking here
-  the JVM would exit befor any sound came out. After `(tempo (bpm 30))` each
+  the JVM would exit before any sound came out. After `(tempo (bpm 30))` each
   note's :time and :duration are in seconds, so the end of the piece is the
   greatest (:time + :duration)."
   [& _args]
   (live/play track)
-  (let [length-secs (reduce (fn [acc {:keys [time duration]}]
-                              (max acc (+ time duration)))
-                            0 track)]
+  (let [length-secs (track-length track)]
     ;; A little tail padding so the final note's envelope can ring out.
     (Thread/sleep (long (* 1000 (+ 2 length-secs)))))
   (live/stop)
   (shutdown-agents)
   (System/exit 0))
 
+(defn record-song
+  "Save the song as a WAV."
+  [filename]
+  (overtone/recording-start (str filename ".wav"))
+  (live/play track)
+  ;; sleep for the song.
+  (let [length-secs (track-length track)]
+    (Thread/sleep (long (* 1000 (+ 3 length-secs)))))
+  (overtone/recording-stop))
