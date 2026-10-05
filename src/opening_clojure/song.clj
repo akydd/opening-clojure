@@ -1,5 +1,5 @@
 (ns opening-clojure.song
-  (:require [overtone.live :refer [definst saw env-gen perc FREE] :as overtone]
+  (:require [overtone.live :refer [definst saw env-gen perc FREE sin-osc] :as overtone]
             [leipzig.melody :refer [tempo bpm where with phrase then times]]
             [leipzig.scale :as scale]
             [leipzig.live :as live]
@@ -19,12 +19,20 @@
       (cons note (lazy-seq (trickle others)))))))
 
 ; Instruments
-(definst bass [freq 110 volume 1.0]
-  (-> (saw freq)
-      (* (env-gen (perc 0.1 0.4) :action FREE))
-      (* volume)))
+;; (definst bass [freq 110 volume 1.0]
+;;   (-> (saw freq)
+;;       (* (env-gen (perc 0.1 0.4) :action FREE))
+;;       (* volume)))
 
-(defmethod live/play-note :default [{hertz :pitch}] (bass hertz))
+(definst synth-piano [freq 440 dur 2.0]
+  (let [env (env-gen (perc 0.01 dur) :action FREE)
+        ;; Fundamental + a few partials (overtones) characteristic of a struck string/bell
+        sig (+ (* 0.5 (sin-osc freq))
+               (* 0.25 (sin-osc (* freq 2.0)))
+               (* 0.125 (sin-osc (* freq 3.0))))]
+    (* env sig)))
+
+(defmethod live/play-note :default [{hertz :pitch}] (synth-piano hertz))
 
 (defn phrase-maker
   "Creates a phrase of oscillating notes of equal `duration`.
@@ -110,3 +118,6 @@
    (then (with top-c mid-c bass-c))
    (where :pitch (comp temperament/equal scale/F scale/dorian))
    (tempo (bpm 30))))
+
+(live/play track)
+
