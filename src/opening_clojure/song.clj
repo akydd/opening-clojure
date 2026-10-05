@@ -1,5 +1,5 @@
 (ns opening-clojure.song
-  (:require [overtone.live :refer [definst saw env-gen perc FREE sin-osc] :as overtone]
+  (:require [overtone.live :refer [definst env-gen perc FREE sin-osc] :as overtone]
             [leipzig.melody :refer [tempo bpm where with phrase then times]]
             [leipzig.scale :as scale]
             [leipzig.live :as live]
@@ -18,12 +18,7 @@
       (Thread/sleep (long (max 0 (- epoch (+ 100 (overtone/now))))))
       (cons note (lazy-seq (trickle others)))))))
 
-; Instruments
-;; (definst bass [freq 110 volume 1.0]
-;;   (-> (saw freq)
-;;       (* (env-gen (perc 0.1 0.4) :action FREE))
-;;       (* volume)))
-
+; Define a synth-piano instrument.
 (definst synth-piano [freq 440 dur 2.0]
   (let [env (env-gen (perc 0.01 dur) :action FREE)
         ;; Fundamental + a few partials (overtones) characteristic of a struck string/bell
@@ -32,7 +27,7 @@
                (* 0.125 (sin-osc (* freq 3.0))))]
     (* env sig)))
 
-(defmethod live/play-note :default [{hertz :pitch}] (synth-piano hertz))
+(defmethod live/play-note :default [{hertz :pitch duration :duration}] (synth-piano hertz duration))
 
 (defn phrase-maker
   "Creates a phrase of oscillating notes of equal `duration`.
@@ -49,11 +44,14 @@
 (defn descend
   "Drops the 2nd to last note in `notes` by a single pitch."
   [notes]
-  ; `notes` arrives as a lazy seq (phrase/then/times/with all return seqs), and
-  ; update-in needs an Associative coll -- on a seq (get notes i) yields nil, so
-  ; (dec nil) would NPE. vec first, then lower the second-to-last note's pitch.
   (let [v (vec notes)]
     (update-in v [(- (count v) 2) :pitch] dec)))
+
+(defn extend-duration
+  "Extend the last note in `notes` by a given `duration`."
+  [notes duration]
+  (let [v (vec notes)]
+    (update-in v [(dec (count v)) :duration] #(+ % duration))))
 
 (def top-a
   (->>
@@ -115,9 +113,25 @@
    (times 2)
    (then (with top-a mid-a bass-a))
    (then (with top-b mid-b bass-b))
-   (then (with top-c mid-c bass-c))
+   (then (apply with (map #(extend-duration % 1) [top-c mid-c bass-c])))
    (where :pitch (comp temperament/equal scale/F scale/dorian))
    (tempo (bpm 30))))
 
-(live/play track)
+(defn -main
+  "Entry point for `lein run`: play the piece and block until it finishes.
+
+  `live/play` is asynchronous and returns immediately, so without blocking here
+  the JVM would exit befor any sound came out. After `(tempo (bpm 30))` each
+  note's :time and :duration are in seconds, so the end of the piece is the
+  greatest (:time + :duration)."
+  [& _args]
+  (live/play track)
+  (let [length-secs (reduce (fn [acc {:keys [time duration]}]
+                              (max acc (+ time duration)))
+                            0 track)]
+    ;; A little tail padding so the final note's envelope can ring out.
+    (Thread/sleep (long (* 1000 (+ 2 length-secs)))))
+  (live/stop)
+  (shutdown-agents)
+  (System/exit 0))
 

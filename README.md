@@ -4,7 +4,8 @@ A Clojure rendering of **"Opening"**, the first movement of Philip Glass's
 *Glassworks* (1982), written using [Overtone](https://overtone.github.io/) (for
 sound synthesis) and [Leipzig](https://github.com/ctford/leipzig) (for
 composition). The whole piece lives in `src/opening_clojure/song.clj` as a value
-called `track`, which you evaluate at a REPL to hear it.
+called `track`. Play it straight from the command line with `lein run`, or
+evaluate it at a REPL.
 
 ## About the piece
 
@@ -64,11 +65,23 @@ clj -P
 
 ## Playing the music
 
-The piece is played by evaluating `track` with Leipzig's `live/play`. There is
-no standalone `lein run` entry point — playback happens from a REPL so the
-Overtone/SuperCollider server stays alive while the music plays.
+The piece is played by evaluating `track` with Leipzig's `live/play`. You can
+either run it directly from the command line or drive it interactively from a
+REPL.
 
-### With Leiningen
+### With `lein run`
+
+```sh
+lein run
+```
+
+`-main` (in `src/opening_clojure/song.clj`) boots Overtone, plays the piece, and
+blocks until it finishes before exiting. Because `live/play` schedules the notes
+on a background thread and returns immediately, `-main` sleeps for the length of
+the piece (plus a short tail) so the JVM doesn't quit before the music plays.
+Press `Ctrl-C` to stop early.
+
+### With a Leiningen REPL
 
 Start a REPL:
 
@@ -135,5 +148,5 @@ To stop playback:
   `scsynth` is on your `PATH`. Check your system output device and volume.
 - **Long first boot:** the initial REPL start downloads dependencies and boots
   SuperCollider; subsequent starts are faster.
-- **`lein run` does nothing useful:** there is no `-main`; use a REPL as
-  described above.
+- **`lein run` exits without sound:** make sure SuperCollider is installed; the
+  server must boot before `-main` can play anything.
